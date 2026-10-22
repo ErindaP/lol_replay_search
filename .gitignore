@@ -1,0 +1,47 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+.eggs/
+.venv/
+.venv.invalid.*/
+venv/
+
+# Build / tooling
+build/
+dist/
+node_modules/
+.next/
+web/node_modules/
+web/.next/
+web/out/
+*.tsbuildinfo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+
+# Runtime logs
+*.log
+
+# Data artifacts (keep structure, not payload)
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+data/index/*
+!data/index/.gitkeep
+data/clips/*
+!data/clips/.gitkeep
+data/replays/*
+!data/replays/.gitkeep
+
+# OS / editor
+.DS_Store
+.vscode/
