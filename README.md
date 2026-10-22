@@ -1,37 +1,37 @@
 # LoL Replay Multimodal Search
 
-Prototype local pour retrouver des moments de parties de **League of Legends** à partir des timelines Riot, puis comparer des extraits de replay selon leur contexte de jeu, leur description et leur contenu visuel.
+A local prototype for finding moments in **League of Legends** matches from Riot timelines, then comparing short replay clips by gameplay context, event descriptions, and visual appearance.
 
-Le projet réunit deux usages :
+The project supports two workflows:
 
-- **Recherche dans les matchs** : requêtes en langage naturel, filtres sur les événements et visualisation PCA des fenêtres retrouvées.
-- **Similarité entre clips** : classement de replays courts à partir de trois signaux (texte dérivé des événements, variables de jeu et images vidéo).
+- **Search match timelines:** natural-language queries, event filters, and a PCA view of the retrieved time windows.
+- **Find similar clips:** rank short replays using three signals: event-derived text, structured gameplay features, and video frames.
 
-> **État du projet.** La similarité multimodale est un prototype non supervisé. Elle combine des descripteurs conçus à la main ; aucun encodeur vidéo ni espace multimodal commun n'est encore entraîné. Les données et les clips locaux ne sont pas inclus dans ce dépôt.
+> **Project status:** Multimodal clip retrieval is an unsupervised prototype built from handcrafted descriptors. It does not yet use a trained video encoder or a learned shared multimodal space. Local match data and replay clips are not included in this repository.
 
-## Démarrage
+## Getting started
 
-Le lanceur `start.sh` utilise **Python 3.12** et crée automatiquement `.venv`. Il fonctionne sous Linux ou WSL. Le client League sous Windows n'est nécessaire que pour ouvrir et enregistrer de nouveaux replays ; la recherche sur des données déjà indexées fonctionne hors ligne.
+The `start.sh` launcher requires **Python 3.12** and creates `.venv` automatically. It runs on Linux or WSL. The League client on Windows is only needed to open or record new replays; searches over an existing index work offline.
 
-Depuis la racine du dépôt :
+From the repository root:
 
 ```bash
 ./start.sh setup
 cp .env.example .env
 ```
 
-Renseigner `RIOT_API_KEY` dans `.env` pour importer de nouveaux matchs. Cette clé n'est pas nécessaire pour interroger un index déjà construit. Le fichier `.env` est ignoré par Git.
+Set `RIOT_API_KEY` in `.env` to import new matches. The key is not needed to search an existing index. Git ignores `.env`.
 
-Un clone GitHub ne contient pas d'index. Il faut soit restaurer ses propres données dans `data/`, soit suivre le pipeline ci-dessous. Une fois l'index créé :
+A fresh GitHub clone does not contain an index. Restore your own data under `data/`, or build an index with the pipeline below. Once the index is ready:
 
 ```bash
 ./start.sh doctor
 ./start.sh
 ```
 
-L'interface Streamlit est accessible sur <http://127.0.0.1:8501>. `./start.sh doctor --live` vérifie aussi la clé Riot si une partie archivée est disponible.
+The Streamlit app opens at <http://127.0.0.1:8501>. If an archived match is available, `./start.sh doctor --live` can also check the Riot API key.
 
-## Construire l'index à partir de Riot
+## Build an index from Riot data
 
 ```bash
 ./start.sh cli ingest-summoner --riot-id 'GameName#EUW' --count 20
@@ -39,54 +39,54 @@ L'interface Streamlit est accessible sur <http://127.0.0.1:8501>. `./start.sh do
 ./start.sh cli build-index
 ```
 
-Le pipeline écrit les matchs et timelines dans `data/raw/`, les fenêtres dans `data/processed/windows.jsonl`, puis les vecteurs et métadonnées de recherche dans `data/index/`. Les répertoires `data/` restent locaux et sont ignorés par Git.
+The pipeline saves matches and timelines in `data/raw/`, time windows in `data/processed/windows.jsonl`, and search vectors and metadata in `data/index/`. These data directories remain local and are ignored by Git.
 
-Par défaut, les descriptions des fenêtres sont encodées par un `HashingVectorizer` de 512 dimensions. L'option `--use-pca --pca-dim 128` réduit facultativement cet index au moment de sa construction. Elle est distincte de la PCA en 2D affichée dans l'interface, recalculée sur les résultats d'une recherche pour aider à les explorer.
+By default, window descriptions are encoded with a 512-dimensional `HashingVectorizer`. The optional `--use-pca --pca-dim 128` flags reduce the index when it is built. This differs from the 2D PCA view in the app, which is recomputed for each set of search results to help explore them.
 
-## Rechercher des moments
+## Search for moments
 
 ```bash
-./start.sh cli query --text 'teamfight autour du dragon' --top-k 5
+./start.sh cli query --text 'teamfight around the dragon' --top-k 5
 ./start.sh cli query-precise --requires-dragon --min-kills 3 --top-k 5
 ./start.sh cli query-precise --no-kills --window-seconds 30 --top-k 10
 ```
 
-Les fenêtres indexées contiennent notamment les kills, objectifs, variations d'or, phase de partie, zones approximatives, invasions du jungler et déplacements du midlaner. L'interface combine recherche textuelle, filtres, tableau de résultats et projection PCA. Les positions de la timeline sont échantillonnées à basse fréquence : les signaux de déplacement décrivent des tendances macro, pas une trajectoire seconde par seconde.
+Indexed windows include kills, objectives, gold swings, game phase, approximate map zones, jungle invades, and mid-lane roams. The app combines text search, filters, a results table, and a PCA projection. Timeline positions are sampled at a low frequency: movement features describe broad map patterns rather than second-by-second paths.
 
-## Comparer des clips de replay
+## Find similar replay clips
 
-Après avoir placé au moins deux clips exportés et alignés avec l'index dans `data/clips/` :
+Place at least two complete clips aligned with the index in `data/clips/`, then run:
 
 ```bash
 ./start.sh cli similar-clips
 ./start.sh cli similar-clips \
-  --clip NOM_DU_CLIP.mp4.webm \
+  --clip CLIP_NAME.mp4.webm \
   --top-k 3 \
   --text-weight 1 --gameplay-weight 1 --video-weight 1
 ```
 
-Le nom du clip contient son identifiant de match et son intervalle temporel ; le programme l'associe à la fenêtre indexée qui recouvre le plus cet intervalle. Pour chaque clip, il calcule :
+A clip filename contains its match ID and time interval. The program links it to the indexed window with the greatest overlap. It then computes one representation per signal:
 
-| Signal | Représentation actuelle |
+| Signal | Current representation |
 | --- | --- |
-| Texte | Résumé court dérivé des événements, encodé avec le même `HashingVectorizer` que l'index (512 dimensions par défaut). |
-| Gameplay | 14 variables sur les kills, objectifs, variation d'or, phase, invasion et roam. |
-| Vidéo | 5 frames échantillonnées ; histogrammes de couleur, contours et variation temporelle (257 dimensions). |
+| Text | A short event-derived play summary, encoded with the index's text embedder (a 512-dimensional `HashingVectorizer` by default). |
+| Gameplay | 14 features covering kills, objectives, gold swing, game phase, invades, and roams. |
+| Video | Five sampled frames summarized by color histograms, edges, and temporal variation (257 dimensions). |
 
-La similarité cosinus est calculée **séparément** pour chaque signal. Les trois scores sont ensuite ramenés à une échelle relative de 0 à 1 sur les clips candidats, puis combinés selon les poids choisis. Ils servent au classement : **1 ne signifie pas une similarité parfaite**. Le texte provient des événements de jeu et n'est donc pas une modalité indépendante. La requête de cette fonction est un *clip de référence* ; une requête textuelle libre utilise la recherche de fenêtres décrite plus haut.
+Cosine similarity is computed **separately** for each signal. The three scores are scaled to a relative 0–1 range across candidate clips, then combined using the chosen weights. They are ranking scores: **1 does not mean a perfect match**. The text is derived from game events, so it is not an independent data source. This workflow takes a *reference clip* as its query; a free-text query uses the timeline search described above.
 
-Dans l'interface, la section **Plays similaires** affiche les scores par signal et permet de modifier leurs poids. Les clips incomplets ou sans fenêtre correspondante dans l'index sont ignorés.
+In the app, the **Plays similaires** section shows each signal's score and lets you adjust its weight. Incomplete clips and clips without a matching indexed window are skipped.
 
-## Ouvrir ou exporter un replay
+## Open or export a replay
 
-L'export vidéo demande le client League, un replay disponible et l'API locale du replay activée dans `game.cfg` :
+Video export requires the League client, an available replay, and the local Replay API enabled in `game.cfg`:
 
 ```ini
 [General]
 EnableReplayApi=1
 ```
 
-Exemple pour un intervalle connu :
+Export a known interval:
 
 ```bash
 ./start.sh cli export-clip \
@@ -95,15 +95,15 @@ Exemple pour un intervalle connu :
   --auto-fetch --auto-load
 ```
 
-Pour rechercher un moment, ouvrir le replay et enregistrer le résultat sélectionné :
+Search for a moment, open its replay, and record the selected result:
 
 ```bash
 ./start.sh cli query-open-result \
-  --text 'teamfight autour du dragon' \
+  --text 'teamfight around the dragon' \
   --top-k 8 --result-index 1 --auto-fetch
 ```
 
-Sous WSL, le projet peut déléguer au client Windows l'ouverture du replay et le pilotage de l'API locale. Si nécessaire, régler dans `.env` :
+On WSL, the project can delegate replay opening and local API control to Windows. If needed, set the following in `.env`:
 
 ```dotenv
 REPLAY_USE_LCU=1
@@ -111,10 +111,10 @@ REPLAY_LCU_EXECUTOR=windows
 REPLAY_API_EXECUTOR=windows
 ```
 
-`RIOT_CLIENT_PATH` et `LEAGUE_DIR` permettent de remplacer la détection automatique de l'installation. Les autres options d'intégration sont documentées dans [.env.example](.env.example). Le dossier `web/` contient une ancienne interface Next.js ; le parcours principal utilise Streamlit.
+`RIOT_CLIENT_PATH` and `LEAGUE_DIR` override automatic installation detection. Other integration options are listed in [.env.example](.env.example). The `web/` directory contains an older Next.js interface; Streamlit is the main workflow.
 
-## Limites et piste de recherche
+## Limitations and research direction
 
-Les neuf clips de l'archive locale suffisent à montrer que les signaux ne classent pas toujours les mêmes plays, mais pas à mesurer la qualité du système. Les descripteurs vidéo actuels capturent surtout l'apparence et la variation des images ; ils ne représentent pas explicitement l'intention stratégique d'une action. Aucun jugement humain de similarité n'est encore disponible.
+The nine clips in the local archive are enough to demonstrate that the signals can rank plays differently, but not enough to measure retrieval quality reliably. Current video descriptors mostly capture appearance and image variation; they do not explicitly represent the strategic intent behind a play. There are no human similarity judgments yet.
 
-Une suite scientifique serait de constituer un jeu annoté de paires de plays, d'encoder séparément la séquence vidéo et la séquence d'événements, puis d'apprendre leur alignement. L'évaluation devrait comparer vidéo seule, événements seuls et fusion (par exemple avec Recall@K et nDCG), sur des matchs tenus à l'écart de l'entraînement.
+A research extension would collect annotated pairs of plays, encode video and event sequences separately, and learn to align their representations. Evaluation should compare video-only, event-only, and fused retrieval—for example with Recall@K and nDCG—on matches held out from training.
