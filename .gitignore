@@ -30,15 +30,26 @@ web/out/
 # Runtime logs
 *.log
 
-# Data artifacts (keep structure, not payload)
+# Reproducible example dataset (keep complete inputs and generated index)
 data/raw/*
 !data/raw/.gitkeep
+!data/raw/*.match.json
+!data/raw/*.timeline.json
 data/processed/*
 !data/processed/.gitkeep
+!data/processed/windows.jsonl
 data/index/*
 !data/index/.gitkeep
+!data/index/embeddings.npy
+!data/index/metadata.jsonl
+!data/index/index_info.json
 data/clips/*
 !data/clips/.gitkeep
+!data/clips/*.mp4
+!data/clips/*.webm
+!data/clips/*.mov
+!data/clips/*.mkv
+!data/clips/manifest.json
 data/replays/*
 !data/replays/.gitkeep
 

@@ -7,7 +7,7 @@ The project supports two workflows:
 - **Search match timelines:** natural-language queries, event filters, and a PCA view of the retrieved time windows.
 - **Find similar clips:** rank short replays using three signals: event-derived text, structured gameplay features, and video frames.
 
-> **Project status:** Multimodal clip retrieval is an unsupervised prototype built from handcrafted descriptors. It does not yet use a trained video encoder or a learned shared multimodal space. Local match data and replay clips are not included in this repository.
+> **Project status:** Multimodal clip retrieval is an unsupervised prototype built from handcrafted descriptors. It does not yet use a trained video encoder or a learned shared multimodal space. This repository includes example data so the search and clip comparison can be tried immediately.
 
 ## Getting started
 
@@ -20,9 +20,9 @@ From the repository root:
 cp .env.example .env
 ```
 
-Set `RIOT_API_KEY` in `.env` to import new matches. The key is not needed to search an existing index. Git ignores `.env`.
+The included index and clips work without a Riot API key. Set `RIOT_API_KEY` in `.env` only if you want to import new matches. Git ignores `.env`.
 
-A fresh GitHub clone does not contain an index. Restore your own data under `data/`, or build an index with the pipeline below. Once the index is ready:
+Check the installation and launch the app:
 
 ```bash
 ./start.sh doctor
@@ -30,6 +30,19 @@ A fresh GitHub clone does not contain an index. Restore your own data under `dat
 ```
 
 The Streamlit app opens at <http://127.0.0.1:8501>. If an archived match is available, `./start.sh doctor --live` can also check the Riot API key.
+
+## Included example data
+
+The repository includes **72 archived matches and timelines**, **11,783 indexed 30-second windows**, and **9 complete replay clips**. This is a demonstration collection, not a labelled benchmark for play similarity.
+
+| Location | Contents |
+| --- | --- |
+| `data/raw/` | Riot match and timeline JSON files, including participant identifiers. |
+| `data/processed/windows.jsonl` | Extracted windows (30 seconds, 10-second step). |
+| `data/index/` | Search vectors, window metadata, and index configuration. |
+| `data/clips/` | Nine clips aligned with windows in the index. |
+
+The local `.env`, unfinished `.tmp` recordings, and replay files under `data/replays/` are not published. The repository is several hundred megabytes because the examples include video.
 
 ## Build an index from Riot data
 
@@ -39,7 +52,7 @@ The Streamlit app opens at <http://127.0.0.1:8501>. If an archived match is avai
 ./start.sh cli build-index
 ```
 
-The pipeline saves matches and timelines in `data/raw/`, time windows in `data/processed/windows.jsonl`, and search vectors and metadata in `data/index/`. These data directories remain local and are ignored by Git.
+The pipeline writes new matches and timelines to `data/raw/`, windows to `data/processed/windows.jsonl`, and search vectors and metadata to `data/index/`. Rebuilding these files replaces the included example index locally.
 
 By default, window descriptions are encoded with a 512-dimensional `HashingVectorizer`. The optional `--use-pca --pca-dim 128` flags reduce the index when it is built. This differs from the 2D PCA view in the app, which is recomputed for each set of search results to help explore them.
 
@@ -55,12 +68,12 @@ Indexed windows include kills, objectives, gold swings, game phase, approximate 
 
 ## Find similar replay clips
 
-Place at least two complete clips aligned with the index in `data/clips/`, then run:
+The included clips can be compared immediately:
 
 ```bash
 ./start.sh cli similar-clips
 ./start.sh cli similar-clips \
-  --clip CLIP_NAME.mp4.webm \
+  --clip EUW1_7860664223_1178000_1212000.mp4.webm \
   --top-k 3 \
   --text-weight 1 --gameplay-weight 1 --video-weight 1
 ```
@@ -115,6 +128,6 @@ REPLAY_API_EXECUTOR=windows
 
 ## Limitations and research direction
 
-The nine clips in the local archive are enough to demonstrate that the signals can rank plays differently, but not enough to measure retrieval quality reliably. Current video descriptors mostly capture appearance and image variation; they do not explicitly represent the strategic intent behind a play. There are no human similarity judgments yet.
+The nine included clips are enough to demonstrate that the signals can rank plays differently, but not enough to measure retrieval quality reliably. Current video descriptors mostly capture appearance and image variation; they do not explicitly represent the strategic intent behind a play. There are no human similarity judgments yet.
 
 A research extension would collect annotated pairs of plays, encode video and event sequences separately, and learn to align their representations. Evaluation should compare video-only, event-only, and fused retrieval—for example with Recall@K and nDCG—on matches held out from training.
