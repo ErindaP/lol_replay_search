@@ -7,8 +7,6 @@ The project supports two workflows:
 - **Search match timelines:** natural-language queries, event filters, and a PCA view of the retrieved time windows.
 - **Find similar clips:** rank short replays using three signals: event-derived text, structured gameplay features, and video frames.
 
-> **Project status:** Multimodal clip retrieval is an unsupervised prototype built from handcrafted descriptors. It does not yet use a trained video encoder or a learned shared multimodal space. This repository includes example data so the search and clip comparison can be tried immediately.
-
 ## Getting started
 
 The `start.sh` launcher requires **Python 3.12** and creates `.venv` automatically. It runs on Linux or WSL. The League client on Windows is only needed to open or record new replays; searches over an existing index work offline.
@@ -33,7 +31,7 @@ The Streamlit app opens at <http://127.0.0.1:8501>. If an archived match is avai
 
 ## Included example data
 
-The repository includes **72 archived matches and timelines**, **11,783 indexed 30-second windows**, and **9 complete replay clips**. This is a demonstration collection, not a labelled benchmark for play similarity.
+The repository includes **72 archived matches and timelines**, **11,783 indexed 30-second windows**, and **9 complete replay clips**. These examples let you try both search workflows immediately.
 
 | Location | Contents |
 | --- | --- |
@@ -64,7 +62,7 @@ By default, window descriptions are encoded with a 512-dimensional `HashingVecto
 ./start.sh cli query-precise --no-kills --window-seconds 30 --top-k 10
 ```
 
-Indexed windows include kills, objectives, gold swings, game phase, approximate map zones, jungle invades, and mid-lane roams. The app combines text search, filters, a results table, and a PCA projection. Timeline positions are sampled at a low frequency: movement features describe broad map patterns rather than second-by-second paths.
+Indexed windows include kills, objectives, gold swings, game phase, approximate map zones, jungle invades, and mid-lane roams. The app combines text search, filters, a results table, and a PCA projection.
 
 ## Find similar replay clips
 
@@ -86,7 +84,7 @@ A clip filename contains its match ID and time interval. The program links it to
 | Gameplay | 14 features covering kills, objectives, gold swing, game phase, invades, and roams. |
 | Video | Five sampled frames summarized by color histograms, edges, and temporal variation (257 dimensions). |
 
-Cosine similarity is computed **separately** for each signal. The three scores are scaled to a relative 0–1 range across candidate clips, then combined using the chosen weights. They are ranking scores: **1 does not mean a perfect match**. The text is derived from game events, so it is not an independent data source. This workflow takes a *reference clip* as its query; a free-text query uses the timeline search described above.
+Cosine similarity is computed **separately** for each signal. The three scores are scaled to a relative 0–1 range across candidate clips, then combined using the chosen weights. A score of 1 is the highest relative score among the candidates for that signal. The text signal is generated from game events. This workflow takes a *reference clip* as its query; a free-text query uses the timeline search described above.
 
 In the app, the **Plays similaires** section shows each signal's score and lets you adjust its weight. Incomplete clips and clips without a matching indexed window are skipped.
 
@@ -125,9 +123,3 @@ REPLAY_API_EXECUTOR=windows
 ```
 
 `RIOT_CLIENT_PATH` and `LEAGUE_DIR` override automatic installation detection. Other integration options are listed in [.env.example](.env.example). The `web/` directory contains an older Next.js interface; Streamlit is the main workflow.
-
-## Limitations and research direction
-
-The nine included clips are enough to demonstrate that the signals can rank plays differently, but not enough to measure retrieval quality reliably. Current video descriptors mostly capture appearance and image variation; they do not explicitly represent the strategic intent behind a play. There are no human similarity judgments yet.
-
-A research extension would collect annotated pairs of plays, encode video and event sequences separately, and learn to align their representations. Evaluation should compare video-only, event-only, and fused retrieval—for example with Recall@K and nDCG—on matches held out from training.
